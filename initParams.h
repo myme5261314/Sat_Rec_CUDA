@@ -24,13 +24,12 @@ using namespace boost::property_tree;
  * This is the function to Get data from the boost::PropertyTree variable.
  * It will lead to its default value when the queried entry doesn't exists.
  */
-template <typename T>
+template<typename T>
 void GetParameter(T &data, string query_str, ptree* pt);
 
 void PropertyTree2Params(ptree *pt, Params *params);
 void Params2PropertyTree(Params *params, ptree *pt);
 
-Params* initParams(string path);
-
+Params* initParams(string path = "default.json");
 
 #endif /* INITPARAMS_H_ */

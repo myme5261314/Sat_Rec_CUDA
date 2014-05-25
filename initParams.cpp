@@ -8,7 +8,7 @@
 #include "initParams.h"
 #include <string>
 
-template <typename T>
+template<typename T>
 void GetParameter(T &data, string query_str, ptree pt) {
 	data = pt.get(query_str, data);
 }
@@ -28,8 +28,10 @@ void PropertyTree2Params(ptree *pt, Params *params) {
 	GetParameter(data->WindowSize, "WindowSize", pt_data);
 	GetParameter(data->StrideSize, "StrideSize", pt_data);
 	GetParameter(data->ChannelSize, "ChannelSize", pt_data);
-	GetParameter(data->dataSize_per_img.height, "dataSize_per_img.height", pt_data);
-	GetParameter(data->dataSize_per_img.width, "dataSize_per_img.width", pt_data);
+	GetParameter(data->dataSize_per_img.height, "dataSize_per_img.height",
+			pt_data);
+	GetParameter(data->dataSize_per_img.width, "dataSize_per_img.width",
+			pt_data);
 	GetParameter(data->data_per_img, "data_per_img", pt_data);
 	GetParameter(data->data_D, "data_D", pt_data);
 	GetParameter(data->data_reduceD, "data_reduceD", pt_data);
@@ -99,14 +101,13 @@ void Params2PropertyTree(Params *params, ptree *pt) {
 /*
  * This is the function to initialize the configuration params in the project.
  */
-Params* initParams(string path="default.json") {
+Params* initParams(string path) {
 	Params* params = new Params();
 	ptree *pt = new ptree();
 	if (exists(path)) {
 		read_json(path, *pt);
 		PropertyTree2Params(pt, params);
-	}
-	else {
+	} else {
 		Params2PropertyTree(params, pt);
 		write_json(path, *pt);
 	}
@@ -123,13 +124,4 @@ Params* initParams(string path="default.json") {
 //}
 
 // eof
-
-
-
-
-
-
-
-
-
 
