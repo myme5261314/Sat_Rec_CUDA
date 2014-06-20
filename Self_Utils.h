@@ -16,6 +16,8 @@
 #include <cula_blas.hpp>
 #include <cula_blas_device.hpp>
 #include <cuda_runtime.h>
+#include <cula_device.h>
+#include <cublas_v2.h>
 
 //#include "selfabstractMat.h"
 #include "utils.h"

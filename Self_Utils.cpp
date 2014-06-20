@@ -6,8 +6,7 @@
  */
 
 #include "Self_Utils.h"
-#include <cula_device.h>
-#include <cublas_v2.h>
+
 
 using namespace std;
 

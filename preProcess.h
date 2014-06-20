@@ -16,13 +16,14 @@
 #include <iostream>
 #include <ctime>
 #include <omp.h>
+#include <cula.h>
+#include <cula_blas.h>
 
 #include "Params.h"
 #include "Load_Image.h"
 
 using namespace cv;
 using namespace boost;
-using namespace Eigen;
 
 void testpreProcess(const Params *params);
 

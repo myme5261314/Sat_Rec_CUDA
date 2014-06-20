@@ -4,9 +4,7 @@
  */
 
 #include "preProcess.h"
-//#include <magma.h>
-#include <cula.h>
-#include <cula_blas.h>
+
 using namespace std;
 
 cv::Mat XImage2Data(const Params *params, const cv::Mat &ximage) {
@@ -17,7 +15,7 @@ cv::Mat XImage2Data(const Params *params, const cv::Mat &ximage) {
 	matSize ms = imgSize2DataMatSize(is, WindowSize, StrideSize);
 	cv::Mat dataMat = cv::Mat::zeros(ms.height * ms.width,
 			WindowSize * WindowSize * ChannelSize, CV_8U);
-//	#pragma omp parallel for
+	#pragma omp parallel for
 	for (size_t i = 0; i < ms.height; ++i) {
 		for (size_t j = 0; j < ms.width; ++j) {
 			try {
@@ -40,48 +38,61 @@ cv::Mat XImage2Data(const Params *params, const cv::Mat &ximage) {
 
 void calpreMean(const Params *params, const vector<cv::Mat> &inputImage,
 		cv::Mat &out_Mat, size_t &num) {
-	BOOST_FOREACH( cv::Mat perInputImage, inputImage){
+	cv::Mat sum = cv::Mat::zeros(inputImage.size(), params->data.data_D, CV_32S);
+	int *count = new int[inputImage.size()];
 	try {
-		cv::Mat data = XImage2Data( params, perInputImage );
-		cv::Mat data_sum;
-		cv::reduce( data, data_sum, 0, CV_REDUCE_SUM, CV_32S);
-		data_sum.convertTo(data_sum, out_Mat.type());
-		out_Mat += data_sum;
-		num += data.rows;
-	} catch(cv::Exception &e) {
-		std::cout << e.what() << std::endl;
+		#pragma omp parallel for
+		for (size_t i=0; i < inputImage.size(); i++) {
+			cv::Mat data = XImage2Data( params, inputImage[i] );
+			cv::reduce( data, sum.row(i), 0, CV_REDUCE_SUM, CV_32S );
+			count[i] = data.rows;
+		}
+		cv::Mat accum_count = cv::Mat::zeros(1,1,CV_32S);
+		sum.convertTo( sum, out_Mat.type() );
+		cv::reduce( sum, out_Mat, 0, CV_REDUCE_SUM );
+		size_t temp=0;
+		for (size_t i=0; i < inputImage.size(); i++)
+			temp += count[i];
+		num = temp;
+		delete [] count;
+	} catch (Exception &e) {
+		cout << e.what() << endl;
+		exit(1);
 	}
-}
+
 }
 
 void calpreStd(const Params *params, const vector<cv::Mat> &inputImage,
 		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu) {
-	// #Todo: Need to use parallel for-loop
-	BOOST_FOREACH( cv::Mat perInputImage, inputImage){
 	try {
-		cv::Mat data = XImage2Data( params, perInputImage );
-		data.convertTo( data, out_Mat.type());
-		for (int i = 0; i < data.rows; ++i)
-		{
-			data.row(i) -= premu;
+		#pragma omp parallel for
+		for (size_t i=0; i < inputImage.size(); i++) {
+			cv::Mat data = XImage2Data( params, inputImage[i] );
+			data.convertTo( data, out_Mat.type());
+			#pragma omp parallel for
+			for (int i = 0; i < data.rows; ++i)
+			{
+				data.row(i) -= premu;
+			}
+			cv::pow(data, 2, data);
+			cv::Mat data_sum;
+			cv::reduce( data, data_sum, 0, CV_REDUCE_SUM );
+			#pragma omp critical
+			{
+				out_Mat += data_sum;
+				num += data.rows;
+			}
+			data.release();
 		}
-		cv::pow(data, 2, data);
-		cv::Mat data_sum;
-		cv::reduce( data, data_sum, 0, CV_REDUCE_SUM, out_Mat.type());
-		out_Mat += data_sum;
-		num += data.rows;
-		data.release();
 	} catch(cv::Exception &e) {
 		std::cout << e.what() << std::endl;
 	}
-}
 }
 
 void calCov(const Params *params, const vector<cv::Mat> &inputImage,
 		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
 		const cv::Mat &presigma) {
-	// #Todo: Need to use parallel for-loop
-//	Eigen::internal::setNbThreads(4);
+	// #TODO: Need to use parallel for-loop
 	cv::Mat data_sum = cv::Mat::zeros(inputImage.size(), out_Mat.cols,
 			out_Mat.type());
 	vector<int> num_vec(inputImage.size());
@@ -138,34 +149,13 @@ void calCov(const Params *params, const vector<cv::Mat> &inputImage,
 		}
 	}
 	cv::Mat summary;
-//	cv::reduce( data_sum, summary, 0, CV_REDUCE_SUM, out_Mat.type() );
-//	out_Mat += summary;
 	for (size_t i = 0; i < num_vec.size(); ++i) {
 		num += num_vec[i];
 	}
-//	BOOST_FOREACH( cv::Mat perInputImage, inputImage) {
-//		try {
-//		cv::Mat data = XImage2Data( params, perInputImage );
-//		data.convertTo( data, out_Mat.type() );
-//		cv::Mat mu;
-//		cv::repeat( premu, data.rows, 1, mu );
-//		data = data - mu;
-//		cv::Mat sigma;
-//		cv::repeat( presigma, data.rows, 1, sigma );
-//		cv::divide( data, sigma, data );
-//		data = data.t() * data;
-//		cv::Mat data_sum;
-//		cv::reduce( data, data_sum, 0, CV_REDUCE_SUM, out_Mat.type() );
-//		out_Mat += data_sum;
-//		num += data.rows;
-//		} catch(cv::Exception &e) {
-//			std::cout << e.what() << std::endl;
-//		}
-//	}
 }
 
 void testpreProcess(const Params *params) {
-	Eigen::internal::setNbThreads(8);
+	// Load Image File
 	std::clock_t t1, t2;
 	t1 = std::clock();
 	t2 = std::clock();
@@ -188,6 +178,8 @@ void testpreProcess(const Params *params) {
 	t2 = std::clock();
 	std::cout << "Finish Load Image, Elpased time is:";
 	std::cout << double(t2 - t1) / CLOCKS_PER_SEC << std::endl;
+
+	// Calculate premean stage.
 	cv::Mat premean = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
@@ -196,6 +188,9 @@ void testpreProcess(const Params *params) {
 	premean /= total;
 	std::cout << "Finish Cal preMean, Elpased time is:";
 	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+//	std::cout << premean << endl;
+//	exit(0);
+	// Calculate prestd stage.
 	t2 = std::clock();
 	cv::Mat prestd = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
@@ -203,8 +198,13 @@ void testpreProcess(const Params *params) {
 	total = 0;
 	calpreStd(params, trainSatImgVec, prestd, total, premean);
 	prestd /= total;
+	cv::sqrt(prestd, prestd);
 	std::cout << "Finish Cal preStd, Elpased time is:";
 	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+//	std::cout << prestd << endl;
+	exit(0);
+
+	// Calculate covariance stage.
 	t2 = std::clock();
 	cv::Mat sig = cv::Mat::zeros(
 			params->data.WindowSize * params->data.WindowSize
@@ -217,6 +217,8 @@ void testpreProcess(const Params *params) {
 	sig /= total;
 	std::cout << "Finish Cal Cov, Elpased time is:";
 	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+
+	// Calculate SVD Stage.
 	t2 = std::clock();
 	sig = sig(Range(0,sig.rows/3), Range(0,sig.rows/3));
 	float *A = new float[sig.rows * sig.cols];
