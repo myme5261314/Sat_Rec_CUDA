@@ -26,16 +26,41 @@ bool calMatMultiplication(const self_abstractMat& A, const self_abstractMat& B, 
 	int ldb = trans_B!='N'?k1:n;
 	int ldc = n;
 	culaStatus s;
-	if (A.isDeviceMemory) {
-		s = culaDeviceGemm(trans_B, trans_A, n, m, k1, 1.0f,
-									(culaDeviceFloat*)B.data, ldb, (culaDeviceFloat*)A.data, lda,
-									0.0f, (culaDeviceFloat*)C.data, ldc);
-	} else {
-		s = culaGemm(trans_B, trans_A, n, m, k1, 1.0f,
-									(culaFloat*)B.data, ldb, (culaFloat*)A.data, lda,
-									0.0f, (culaFloat*)C.data, ldc);
+	try {
+		if (A.isDeviceMemory) {
+			s = culaDeviceGemm(trans_B, trans_A, n, m, k1, 1.0f,
+										(culaDeviceFloat*)B.data, ldb, (culaDeviceFloat*)A.data, lda,
+										0.0f, (culaDeviceFloat*)C.data, ldc);
+		} else {
+			s = culaGemm(trans_B, trans_A, n, m, k1, 1.0f,
+										(culaFloat*)B.data, ldb, (culaFloat*)A.data, lda,
+										0.0f, (culaFloat*)C.data, ldc);
+		}
+	} catch (exception &e) {
+		cout << e.what() << endl;
+	}
+
+	return dispCULAStatus(s);
+}
+
+bool calMatSVD(const self_abstractMat& Mat, const self_abstractMat& S) {
+	assert( Mat.row == Mat.column );
+	assert( Mat.row == S.column );
+	assert( Mat.isDeviceMemory == S.isDeviceMemory );
+	culaStatus s;
+	try {
+		if (Mat.isDeviceMemory) {
+			s = culaDeviceGesvd('O', 'N', Mat.row, Mat.column, (culaFloat*)Mat.data, Mat.row, (culaFloat*)S.data, NULL,
+					Mat.row, NULL, Mat.row);
+		} else {
+			s = culaSgesvd('O', 'N', Mat.row, Mat.column, (culaFloat*)Mat.data, Mat.row, (culaFloat*)S.data, NULL,
+					Mat.row, NULL, Mat.row);
+		}
+	} catch (exception &e) {
+		cout << e.what() << endl;
 	}
 	return dispCULAStatus(s);
+
 }
 
 void testMatMultiplication() {

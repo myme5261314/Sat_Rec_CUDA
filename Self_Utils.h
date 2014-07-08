@@ -27,6 +27,7 @@
 using namespace cv;
 
 bool calMatMultiplication(const self_abstractMat& A, const self_abstractMat& B, const self_abstractMat& C);
+bool calMatSVD(const self_abstractMat& Mat, const self_abstractMat& S);
 
 void testMatMultiplication();
 

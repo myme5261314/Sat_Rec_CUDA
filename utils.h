@@ -9,6 +9,7 @@
 #define UTILS_H_
 
 #include <stdio.h>
+#include <iostream>
 #include <cuda_runtime.h>
 #include <cula.h>
 

@@ -7,6 +7,8 @@
 
 #include "utils.h"
 
+using namespace std;
+
 bool checkCudaError(cudaError_t err)
 {
     if(!err)
@@ -24,7 +26,8 @@ bool dispCULAStatus(culaStatus &s) {
 	    info = culaGetErrorInfo();
 	    culaGetErrorInfoString(s, info, buf, sizeof(buf));
 
-	    printf("%s", buf);
+	    cout << buf << endl;
+//	    printf("%s", buf);
 	    delete [] buf;
 	    return false;
 	} else {

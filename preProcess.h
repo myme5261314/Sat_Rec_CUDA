@@ -22,6 +22,8 @@
 #include "Params.h"
 #include "Load_Image.h"
 
+#include "Self_Utils.h"
+
 using namespace cv;
 using namespace boost;
 

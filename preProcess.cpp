@@ -112,31 +112,12 @@ void calCov(const Params *params, const vector<cv::Mat> &inputImage,
 				data.row(i) -= t_mu;
 				data.row(i) /= t_sigma;
 			}
-		std::clock_t t1 = std::clock();
+			std::clock_t t1 = std::clock();
 			culaFloat *result = (culaFloat*)malloc(data.cols*data.cols*sizeof(float));
 			culaStatus s;
-			s = culaInitialize();
-			if( s != culaNoError )
-			{
-				int info;
-				char buf[256];
-			    info = culaGetErrorInfo();
-			    culaGetErrorInfoString(s, info, buf, sizeof(buf));
-
-			    printf("%s", buf);
-			}
 			culaFloat* in = (culaFloat*)data.data;
 			s = culaSgemm('T', 'N', data.cols, data.cols, data.rows, 1.0f, in, data.rows, in, data.rows, 0.0f, result, data.cols);
-			if( s != culaNoError )
-			{
-				int info;
-				char buf[256];
-			    info = culaGetErrorInfo();
-			    culaGetErrorInfoString(s, info, buf, sizeof(buf));
-
-			    printf("%s", buf);
-			}
-			culaShutdown();
+			dispCULAStatus(s);
 			num_vec[i] = data.rows;
 			cv::Mat resultdata(data.cols, data.cols, CV_32F, (void*)result, 0);
 			out_Mat += resultdata;
@@ -202,7 +183,7 @@ void testpreProcess(const Params *params) {
 	std::cout << "Finish Cal preStd, Elpased time is:";
 	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
 //	std::cout << prestd << endl;
-	exit(0);
+//	exit(0);
 
 	// Calculate covariance stage.
 	t2 = std::clock();
@@ -220,34 +201,45 @@ void testpreProcess(const Params *params) {
 
 	// Calculate SVD Stage.
 	t2 = std::clock();
+//	cv::Mat mat = cv::Mat::ones(10,10,CV_32F);
+//	cv::Mat S = cv::Mat::zeros(1,10,CV_32F);
+//	cv::Mat U = cv::Mat::zeros(10,10,CV_32F);
+//	cv::Mat VT = cv::Mat::zeros(10,10,CV_32F);
+//	self_hostMat selfmat(mat), selfS(S), selfU(U), selfVT(VT);
+//	calMatSVD(selfmat, selfU, selfS, selfVT);
+//	cout<< U << endl;
+
 	sig = sig(Range(0,sig.rows/3), Range(0,sig.rows/3));
-	float *A = new float[sig.rows * sig.cols];
-//	memcpy(A, (const void*) sig.data, sig.rows * sig.cols * sizeof(float));
-	for(int i=0; i<sig.rows*sig.cols; i++) {
-		A[i] = i+1;
-	}
-	float *U = new float[sig.rows * sig.rows];
-//	float *VT = new float[sig.rows * sig.rows];
-	float *S = new float[1 * sig.rows];
-	assert(culaInitialize() == culaNoError);
-//	assert(culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
-//			sig.rows, VT, sig.rows) == culaNoError);
-	culaStatus s = culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
-			sig.rows, NULL, sig.rows);
-	cout<< U[0]<<endl;
-	delete [] A;
-	delete [] U;
-	delete [] S;
-//	delete [] VT;
+	self_hostMat mat(sig);
+	cv::Mat S = cv::Mat::zeros(1, sig.rows, CV_32F);
+	self_hostMat selfS(S);
+	cv::Mat U = cv::Mat::zeros(sig.rows, sig.rows, CV_32F);
+	self_hostMat selfU(U);
+	cv::Mat VT = cv::Mat::zeros(sig.rows, sig.rows, CV_32F);
+	self_hostMat selfVT(VT);
+	calMatSVD(mat, selfS);
+	cout<< S << endl;
+
+//	float *A = new float[sig.rows * sig.cols];
+////	memcpy(A, (const void*) sig.data, sig.rows * sig.cols * sizeof(float));
+//	for(int i=0; i<sig.rows*sig.cols; i++) {
+//		A[i] = i+1;
+//	}
+//	float *U = new float[sig.rows * sig.rows];
+////	float *VT = new float[sig.rows * sig.rows];
+//	float *S = new float[1 * sig.rows];
+//	assert(culaInitialize() == culaNoError);
+////	assert(culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
+////			sig.rows, VT, sig.rows) == culaNoError);
+//	culaStatus s = culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
+//			sig.rows, NULL, sig.rows);
+//	cout<< U[0]<<endl;
+//	delete [] A;
+//	delete [] U;
+//	delete [] S;
+////	delete [] VT;
 
 //	t2 = std::clock();
 	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
-	cout<< culaGetStatusString(s)<<endl;
-	culaInfo info = culaGetErrorInfo();
-	char *re = new char[10000];
-	memset(re, 0, 10000*sizeof(char));
-	assert(culaGetErrorInfoString(s, info, re, 10000) == culaNoError);
-	cout<<re<<endl;
-	delete [] re;
 //	std::cout << premean << std::endl;
 }
