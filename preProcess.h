@@ -27,6 +27,21 @@
 using namespace cv;
 using namespace boost;
 
+cv::Mat XImage2Data(const Params *params, const cv::Mat &ximage);
+void calpreMean(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num);
+void calpreStd(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu);
+void calCov(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
+		const cv::Mat &presigma);
+void calpostMean(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
+		const cv::Mat &presigma, const cv::Mat &Ureduce);
+void calpostStd(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
+		const cv::Mat &presigma, const cv::Mat &Ureduce, const cv::Mat &postmu);
+
 void testpreProcess(const Params *params);
 
 #endif /* LOAD_IMAGE_H_ */

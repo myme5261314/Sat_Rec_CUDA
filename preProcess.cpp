@@ -129,9 +129,87 @@ void calCov(const Params *params, const vector<cv::Mat> &inputImage,
 			std::cout << e.what() << std::endl;
 		}
 	}
-	cv::Mat summary;
+
 	for (size_t i = 0; i < num_vec.size(); ++i) {
 		num += num_vec[i];
+	}
+}
+
+void calpostMean(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
+		const cv::Mat &presigma, const cv::Mat &Ureduce) {
+	cv::Mat sum = cv::Mat::zeros(inputImage.size(), params->data.data_D, CV_32F);
+	int *count = new int[inputImage.size()];
+	try {
+		#pragma omp parallel for
+		for (size_t i=0; i < inputImage.size(); i++) {
+			cv::Mat data = XImage2Data( params, inputImage[i] );
+			data.convertTo(data, out_Mat.type());
+			#pragma omp parallel for
+			for (int j=0; j < data.rows; j++) {
+				data.row(j) -= premu;
+				data.row(j) -= presigma;
+			}
+			cv::Mat tempdata = cv::Mat::zeros(data.rows, Ureduce.cols, data.type());
+			self_hostMat A(data), B(Ureduce), C(tempdata);
+			#pragma omp critical
+			{
+				calMatMultiplication(A, B, C);
+			}
+			cv::reduce( tempdata, sum.row(i), 0, CV_REDUCE_SUM, CV_32F );
+			count[i] = data.rows;
+		}
+		cv::Mat accum_count = cv::Mat::zeros(1,1,CV_32S);
+		sum.convertTo( sum, out_Mat.type() );
+		cv::reduce( sum, out_Mat, 0, CV_REDUCE_SUM );
+		size_t temp=0;
+		for (size_t i=0; i < inputImage.size(); i++)
+			temp += count[i];
+		num = temp;
+		delete [] count;
+	} catch (Exception &e) {
+		cout << e.what() << endl;
+		exit(1);
+	}
+}
+
+void calpostStd(const Params *params, const vector<cv::Mat> &inputImage,
+		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
+		const cv::Mat &presigma, const cv::Mat &Ureduce, const cv::Mat &postmu) {
+	try {
+		#pragma omp parallel for
+		for (size_t i=0; i < inputImage.size(); i++) {
+			cv::Mat data = XImage2Data( params, inputImage[i] );
+			data.convertTo( data, out_Mat.type());
+			#pragma omp parallel for
+			for (int j = 0; j < data.rows; ++j)
+			{
+				data.row(j) -= premu;
+				data.row(j) /= presigma;
+			}
+			cv::Mat tempdata = cv::Mat::zeros(data.rows, Ureduce.cols, data.type());
+			self_hostMat A(data), B(Ureduce), C(tempdata);
+			#pragma omp critical
+			{
+				calMatMultiplication(A, B, C);
+			}
+			#pragma omp parallel for
+			for (int j = 0; j < data.rows; ++j)
+			{
+				tempdata.row(j) -= postmu;
+			}
+			cv::pow(tempdata, 2, tempdata);
+			cv::Mat data_sum;
+			cv::reduce( tempdata, data_sum, 0, CV_REDUCE_SUM );
+			#pragma omp critical
+			{
+				out_Mat += data_sum;
+				num += data.rows;
+			}
+			data.release();
+		}
+	} catch(cv::Exception &e) {
+		std::cout << e.what() << std::endl;
 	}
 }
 
@@ -196,7 +274,7 @@ void testpreProcess(const Params *params) {
 //	exit(0);
 
 	// Calculate covariance stage.
-	t2 = std::clock();
+	t1 = std::clock();
 	cv::Mat sig = cv::Mat::zeros(
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize,
@@ -206,6 +284,7 @@ void testpreProcess(const Params *params) {
 	calCov(params, trainSatImgVec, sig, total, premean, prestd);
 //	cout << "total=" << total << endl;
 	sig /= total;
+	t2 = std::clock();
 	message = "Finish Cal Cov, Elapsed time is:";
 	dispMessage(message, t1, t2);
 
@@ -224,6 +303,37 @@ void testpreProcess(const Params *params) {
 	}
 	t2 = std::clock();
 	message = "Finish Cal SVD, Elapsed time is:";
+	dispMessage(message, t1, t2);
+
+	// Calculate PostMean Stage.
+	t1 = std::clock();
+	cv::Mat postmean = cv::Mat::zeros(1, sig.cols, CV_32F);
+	keyword = "postmean";
+	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePostMean;
+	if (!loadMat(path, keyword, postmean)) {
+		total = 0;
+		calpostMean(params, trainSatImgVec, postmean, total, premean, prestd, sig);
+		postmean /= total;
+		saveMat(path, keyword, postmean);
+	}
+	t2 = std::clock();
+	message = "Finish Cal postMean, Elapsed time is:";
+	dispMessage(message, t1, t2);
+
+	// Calculate PostStd stage.
+	t1 = std::clock();
+	cv::Mat poststd = cv::Mat::zeros(1, sig.cols, CV_32F);
+	keyword = "poststd";
+	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePostStd;
+	if (!loadMat(path, keyword, poststd)) {
+		total = 0;
+		calpostStd(params, trainSatImgVec, poststd, total, premean, prestd, sig, postmean);
+		poststd /= total;
+		cv::sqrt(poststd, poststd);
+		saveMat(path, keyword, poststd);
+	}
+	t2 = std::clock();
+	message = "Finish Cal postStd, Elapsed time is:";
 	dispMessage(message, t1, t2);
 
 }
