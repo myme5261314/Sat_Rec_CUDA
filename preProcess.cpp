@@ -157,18 +157,23 @@ void testpreProcess(const Params *params) {
 	std::vector<cv::Mat> trainSatImgVec = batchLoadImage(trainSat_vec);
 	trainMapImgVec.clear();
 	t2 = std::clock();
-	std::cout << "Finish Load Image, Elpased time is:";
-	std::cout << double(t2 - t1) / CLOCKS_PER_SEC << std::endl;
+	string message = "Finish Load Image, Elapsed time is:";
+	dispMessage(message, t1, t2);
 
 	// Calculate premean stage.
 	cv::Mat premean = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
+	string keyword = "premean";
+	string path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePreMean;
 	size_t total = 0;
-	calpreMean(params, trainSatImgVec, premean, total);
-	premean /= total;
-	std::cout << "Finish Cal preMean, Elpased time is:";
-	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+	if (!loadMat(path, keyword, premean)) {
+		calpreMean(params, trainSatImgVec, premean, total);
+		premean /= total;
+		saveMat(path, keyword, premean);
+	}
+	message = "Finish Cal preMean, Elapsed time is:";
+	dispMessage(message, t1, t2);
 //	std::cout << premean << endl;
 //	exit(0);
 	// Calculate prestd stage.
@@ -176,12 +181,17 @@ void testpreProcess(const Params *params) {
 	cv::Mat prestd = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
-	total = 0;
-	calpreStd(params, trainSatImgVec, prestd, total, premean);
-	prestd /= total;
-	cv::sqrt(prestd, prestd);
-	std::cout << "Finish Cal preStd, Elpased time is:";
-	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+	keyword = "prestd";
+	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePreStd;
+	if (!loadMat(path, keyword, prestd)) {
+		total = 0;
+		calpreStd(params, trainSatImgVec, prestd, total, premean);
+		prestd /= total;
+		cv::sqrt(prestd, prestd);
+		saveMat(path, keyword, prestd);
+	}
+	message = "Finish Cal preStd, Elapsed time is:";
+	dispMessage(message, t1, t2);
 //	std::cout << prestd << endl;
 //	exit(0);
 
@@ -196,50 +206,24 @@ void testpreProcess(const Params *params) {
 	calCov(params, trainSatImgVec, sig, total, premean, prestd);
 //	cout << "total=" << total << endl;
 	sig /= total;
-	std::cout << "Finish Cal Cov, Elpased time is:";
-	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
+	message = "Finish Cal Cov, Elapsed time is:";
+	dispMessage(message, t1, t2);
 
 	// Calculate SVD Stage.
+	t1 = std::clock();
+	keyword = "pca";
+	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePca;
+//	sig = sig(Range(0,sig.rows/3), Range(0,sig.rows/3));
+	if (!loadMat(path, keyword, sig)) {
+		self_hostMat mat(sig);
+		cv::Mat S = cv::Mat::zeros(1, sig.rows, CV_32F);
+		self_hostMat selfS(S);
+		calMatSVD(mat, selfS);
+		cout<< S << endl;
+		saveMat(path, keyword, sig);
+	}
 	t2 = std::clock();
-//	cv::Mat mat = cv::Mat::ones(10,10,CV_32F);
-//	cv::Mat S = cv::Mat::zeros(1,10,CV_32F);
-//	cv::Mat U = cv::Mat::zeros(10,10,CV_32F);
-//	cv::Mat VT = cv::Mat::zeros(10,10,CV_32F);
-//	self_hostMat selfmat(mat), selfS(S), selfU(U), selfVT(VT);
-//	calMatSVD(selfmat, selfU, selfS, selfVT);
-//	cout<< U << endl;
+	message = "Finish Cal SVD, Elapsed time is:";
+	dispMessage(message, t1, t2);
 
-	sig = sig(Range(0,sig.rows/3), Range(0,sig.rows/3));
-	self_hostMat mat(sig);
-	cv::Mat S = cv::Mat::zeros(1, sig.rows, CV_32F);
-	self_hostMat selfS(S);
-	cv::Mat U = cv::Mat::zeros(sig.rows, sig.rows, CV_32F);
-	self_hostMat selfU(U);
-	cv::Mat VT = cv::Mat::zeros(sig.rows, sig.rows, CV_32F);
-	self_hostMat selfVT(VT);
-	calMatSVD(mat, selfS);
-	cout<< S << endl;
-
-//	float *A = new float[sig.rows * sig.cols];
-////	memcpy(A, (const void*) sig.data, sig.rows * sig.cols * sizeof(float));
-//	for(int i=0; i<sig.rows*sig.cols; i++) {
-//		A[i] = i+1;
-//	}
-//	float *U = new float[sig.rows * sig.rows];
-////	float *VT = new float[sig.rows * sig.rows];
-//	float *S = new float[1 * sig.rows];
-//	assert(culaInitialize() == culaNoError);
-////	assert(culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
-////			sig.rows, VT, sig.rows) == culaNoError);
-//	culaStatus s = culaSgesvd('A', 'N', sig.rows, sig.rows, A, sig.rows, S, U,
-//			sig.rows, NULL, sig.rows);
-//	cout<< U[0]<<endl;
-//	delete [] A;
-//	delete [] U;
-//	delete [] S;
-////	delete [] VT;
-
-//	t2 = std::clock();
-	std::cout << double(std::clock() - t2) / CLOCKS_PER_SEC << std::endl;
-//	std::cout << premean << std::endl;
 }

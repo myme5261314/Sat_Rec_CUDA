@@ -10,6 +10,7 @@
 
 #include <assert.h>
 #include <iostream>
+#include <string>
 #include <opencv2/opencv.hpp>
 #include <opencv2/gpu/gpu.hpp>
 #include <cula.hpp>
@@ -28,6 +29,9 @@ using namespace cv;
 
 bool calMatMultiplication(const self_abstractMat& A, const self_abstractMat& B, const self_abstractMat& C);
 bool calMatSVD(const self_abstractMat& Mat, const self_abstractMat& S);
+
+bool saveMat(std::string path, std::string keyword, const cv::Mat &mat);
+bool loadMat(std::string path, std::string keyword, cv::Mat &mat);
 
 void testMatMultiplication();
 

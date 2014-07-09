@@ -53,13 +53,18 @@ struct pathPart {
 			this->isLinux ?
 					"~/Sat_Rec_Dataset/Mass_Roads/" :
 					"E:/Sat_Rec_Dataset/Mass_Roads/";
-	string trainFloder = "Train";
-	string validFloder = "Train";
-	string testFloder = "Test";
-	string satFloder = "Sat";
-	string mapFloder = "Map";
-	string cacheFloder = "cache";
+	string trainFloder = "Train/";
+	string validFloder = "Train/";
+	string testFloder = "Test/";
+	string satFloder = "Sat/";
+	string mapFloder = "Map/";
+	string cacheFloder = "cache/";
 	// Cache Path
+	string cachePreMean = "premean.dat";
+	string cachePreStd = "prestd.dat";
+	string cachePca = "pca.dat";
+	string cachePostMean = "postmean.dat";
+	string cachePostStd = "poststd.dat";
 	string cacheRBM = "rbm.dat";
 	string cacheEpochRBM = "epochrbm.dat";
 	string cacheNN = "nn.dat";

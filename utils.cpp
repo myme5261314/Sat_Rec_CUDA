@@ -35,4 +35,6 @@ bool dispCULAStatus(culaStatus &s) {
 	}
 }
 
-
+void dispMessage(std::string message, std::clock_t t1, std::clock_t t2) {
+	std::cout << message << double(t2 - t1) / CLOCKS_PER_SEC << std::endl;
+}

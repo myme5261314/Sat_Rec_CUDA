@@ -63,6 +63,29 @@ bool calMatSVD(const self_abstractMat& Mat, const self_abstractMat& S) {
 
 }
 
+
+bool saveMat(std::string path, std::string keyword, const cv::Mat &mat) {
+	if (!boost::filesystem::exists(path)) {
+		FileStorage fs(path, FileStorage::WRITE);
+		fs<<keyword<<mat;
+		fs.release();
+		cout << "Save " << keyword << "to " << path << " successfully!" << endl;
+		return true;
+	} else
+		return false;
+}
+
+bool loadMat(std::string path, std::string keyword, cv::Mat &mat) {
+	if (boost::filesystem::exists(path)) {
+		FileStorage fs(path, FileStorage::READ);
+		fs[keyword] >> mat;
+		fs.release();
+		cout << "Load " << keyword << "from " << path << " successfully!" << endl;
+		return true;
+	} else
+		return false;
+}
+
 void testMatMultiplication() {
     Mat A = (Mat_<float>(3,3) << 0, 100, 0, -1, 5, -1, 0, -1, 0);
 //    Mat A = (Mat_<float>(2,2) << 100, 200, 300, 400);
