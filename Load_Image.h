@@ -27,7 +27,7 @@ void dispVector(vector<string> vec);
 vector<string> getDirList(string s_path);
 vector<string> getDirList(boost::filesystem::path p);
 std::vector<string> extractFileList(vector<string> raw_filelist,
-		size_t extractNum);
+		size_t extractNum=0);
 vector<string> excludeFileList(vector<string> raw_filelist,
 		string excludeKeyWord, bool isBlackList);
 vector<cv::Mat> batchLoadImage(vector<string> v_path);

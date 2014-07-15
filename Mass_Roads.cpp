@@ -26,7 +26,7 @@ int main() {
 	boost::property_tree::write_json("default.json", pt);
 	// Load Image Data to Memory.
 	testLoad_Image(params);
-	testpreProcess((const Params*) params);
+	testpreProcess(params);
 	delete params;
 
 	culaShutdown();

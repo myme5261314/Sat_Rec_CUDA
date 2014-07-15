@@ -54,6 +54,7 @@ std::vector<string> getDirList(boost::filesystem::path p) {
 std::vector<string> extractFileList(vector<string> raw_filelist,
 		size_t extractNum) {
 	vector<string> new_filelist;
+	if (extractNum==0) extractNum = raw_filelist.size();
 	for (size_t i = 0; i < extractNum; ++i) {
 		new_filelist.push_back(raw_filelist[i]);
 	}

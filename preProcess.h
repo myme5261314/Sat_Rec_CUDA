@@ -42,6 +42,6 @@ void calpostStd(const Params *params, const vector<cv::Mat> &inputImage,
 		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
 		const cv::Mat &presigma, const cv::Mat &Ureduce, const cv::Mat &postmu);
 
-void testpreProcess(const Params *params);
+void testpreProcess(Params *params);
 
 #endif /* LOAD_IMAGE_H_ */

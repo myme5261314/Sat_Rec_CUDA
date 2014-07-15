@@ -138,7 +138,7 @@ void calCov(const Params *params, const vector<cv::Mat> &inputImage,
 void calpostMean(const Params *params, const vector<cv::Mat> &inputImage,
 		cv::Mat &out_Mat, size_t &num, const cv::Mat &premu,
 		const cv::Mat &presigma, const cv::Mat &Ureduce) {
-	cv::Mat sum = cv::Mat::zeros(inputImage.size(), params->data.data_D, CV_32F);
+	cv::Mat sum = cv::Mat::zeros(inputImage.size(), params->data.data_D/3, CV_32F);
 	int *count = new int[inputImage.size()];
 	try {
 		#pragma omp parallel for
@@ -213,7 +213,7 @@ void calpostStd(const Params *params, const vector<cv::Mat> &inputImage,
 	}
 }
 
-void testpreProcess(const Params *params) {
+void testpreProcess(Params *params) {
 	// Load Image File
 	std::clock_t t1, t2;
 	t1 = std::clock();
@@ -225,65 +225,53 @@ void testpreProcess(const Params *params) {
 			excludeFileList(getDirList(trainSat), ".tiff", false),
 			params->debug.debugSize);
 	dispVector(trainSat_vec);
-	boost::filesystem::path trainMap = root / params->path.trainFloder
-			/ params->path.mapFloder;
-	std::vector<string> trainMap_vec = extractFileList(
-			excludeFileList(getDirList(trainMap), ".tif", false),
-			params->debug.debugSize);
-	dispVector(trainMap_vec);
-	std::vector<cv::Mat> trainMapImgVec = batchLoadImage(trainMap_vec);
 	std::vector<cv::Mat> trainSatImgVec = batchLoadImage(trainSat_vec);
-	trainMapImgVec.clear();
 	t2 = std::clock();
 	string message = "Finish Load Image, Elapsed time is:";
 	dispMessage(message, t1, t2);
 
 	// Calculate premean stage.
-	cv::Mat premean = cv::Mat::zeros(1,
+	params->data.premean = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
 	string keyword = "premean";
 	string path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePreMean;
 	size_t total = 0;
-	if (!loadMat(path, keyword, premean)) {
-		calpreMean(params, trainSatImgVec, premean, total);
-		premean /= total;
-		saveMat(path, keyword, premean);
+	if (!loadMat(path, keyword, params->data.premean)) {
+		calpreMean(params, trainSatImgVec, params->data.premean, total);
+		params->data.premean /= total;
+		saveMat(path, keyword, params->data.premean);
 	}
 	message = "Finish Cal preMean, Elapsed time is:";
 	dispMessage(message, t1, t2);
-//	std::cout << premean << endl;
-//	exit(0);
+
 	// Calculate prestd stage.
 	t2 = std::clock();
-	cv::Mat prestd = cv::Mat::zeros(1,
+	params->data.prestd = cv::Mat::zeros(1,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
 	keyword = "prestd";
 	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePreStd;
-	if (!loadMat(path, keyword, prestd)) {
+	if (!loadMat(path, keyword, params->data.prestd)) {
 		total = 0;
-		calpreStd(params, trainSatImgVec, prestd, total, premean);
-		prestd /= total;
-		cv::sqrt(prestd, prestd);
-		saveMat(path, keyword, prestd);
+		calpreStd(params, trainSatImgVec, params->data.prestd, total, params->data.premean);
+		params->data.prestd /= total;
+		cv::sqrt(params->data.prestd, params->data.prestd);
+		saveMat(path, keyword, params->data.prestd);
 	}
 	message = "Finish Cal preStd, Elapsed time is:";
 	dispMessage(message, t1, t2);
-//	std::cout << prestd << endl;
-//	exit(0);
 
 	// Calculate covariance stage.
 	t1 = std::clock();
-	cv::Mat sig = cv::Mat::zeros(
+	params->data.Ureduce = cv::Mat::zeros(
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize,
 			params->data.WindowSize * params->data.WindowSize
 					* params->data.ChannelSize, CV_32F);
 	total = 0;
-	calCov(params, trainSatImgVec, sig, total, premean, prestd);
-//	cout << "total=" << total << endl;
-	sig /= total;
+	calCov(params, trainSatImgVec, params->data.Ureduce, total, params->data.premean, params->data.prestd);
+	params->data.Ureduce /= total;
 	t2 = std::clock();
 	message = "Finish Cal Cov, Elapsed time is:";
 	dispMessage(message, t1, t2);
@@ -293,13 +281,15 @@ void testpreProcess(const Params *params) {
 	keyword = "pca";
 	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePca;
 //	sig = sig(Range(0,sig.rows/3), Range(0,sig.rows/3));
-	if (!loadMat(path, keyword, sig)) {
-		self_hostMat mat(sig);
-		cv::Mat S = cv::Mat::zeros(1, sig.rows, CV_32F);
+	if (!loadMat(path, keyword, params->data.Ureduce)) {
+		self_hostMat mat(params->data.Ureduce);
+		cv::Mat S = cv::Mat::zeros(1, params->data.Ureduce.rows, CV_32F);
 		self_hostMat selfS(S);
 		calMatSVD(mat, selfS);
 		cout<< S << endl;
-		saveMat(path, keyword, sig);
+		int c = params->data.Ureduce.cols;
+		params->data.Ureduce = params->data.Ureduce( cv::Range::all(), Range(0,c/3) );
+		saveMat(path, keyword, params->data.Ureduce);
 	}
 	t2 = std::clock();
 	message = "Finish Cal SVD, Elapsed time is:";
@@ -307,14 +297,14 @@ void testpreProcess(const Params *params) {
 
 	// Calculate PostMean Stage.
 	t1 = std::clock();
-	cv::Mat postmean = cv::Mat::zeros(1, sig.cols, CV_32F);
+	params->data.postmean = cv::Mat::zeros(1, params->data.Ureduce.cols, CV_32F);
 	keyword = "postmean";
 	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePostMean;
-	if (!loadMat(path, keyword, postmean)) {
+	if (!loadMat(path, keyword, params->data.postmean)) {
 		total = 0;
-		calpostMean(params, trainSatImgVec, postmean, total, premean, prestd, sig);
-		postmean /= total;
-		saveMat(path, keyword, postmean);
+		calpostMean(params, trainSatImgVec, params->data.postmean, total, params->data.premean, params->data.prestd, params->data.Ureduce);
+		params->data.postmean /= total;
+		saveMat(path, keyword, params->data.postmean);
 	}
 	t2 = std::clock();
 	message = "Finish Cal postMean, Elapsed time is:";
@@ -322,15 +312,15 @@ void testpreProcess(const Params *params) {
 
 	// Calculate PostStd stage.
 	t1 = std::clock();
-	cv::Mat poststd = cv::Mat::zeros(1, sig.cols, CV_32F);
+	params->data.poststd = cv::Mat::zeros(1, params->data.Ureduce.cols, CV_32F);
 	keyword = "poststd";
 	path = params->path.dataFloder + params->path.cacheFloder + params->path.cachePostStd;
-	if (!loadMat(path, keyword, poststd)) {
+	if (!loadMat(path, keyword, params->data.poststd)) {
 		total = 0;
-		calpostStd(params, trainSatImgVec, poststd, total, premean, prestd, sig, postmean);
-		poststd /= total;
-		cv::sqrt(poststd, poststd);
-		saveMat(path, keyword, poststd);
+		calpostStd(params, trainSatImgVec, params->data.poststd, total, params->data.premean, params->data.prestd, params->data.Ureduce, params->data.postmean);
+		params->data.poststd /= total;
+		cv::sqrt(params->data.poststd, params->data.poststd);
+		saveMat(path, keyword, params->data.poststd);
 	}
 	t2 = std::clock();
 	message = "Finish Cal postStd, Elapsed time is:";

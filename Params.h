@@ -17,6 +17,7 @@ static bool os_linux = true;
 #include <assert.h>
 #include <math.h>
 #include <string>
+#include <opencv2/opencv.hpp>
 using namespace std;
 
 typedef struct imgSize {
@@ -43,6 +44,12 @@ struct dataPart {
 	size_t data_per_img = matSize2Size(this->dataSize_per_img);
 	size_t data_D = this->WindowSize * this->WindowSize * this->ChannelSize;
 	size_t data_reduceD = this->WindowSize * this->WindowSize;
+
+	cv::Mat premean;
+	cv::Mat prestd;
+	cv::Mat Ureduce;
+	cv::Mat postmean;
+	cv::Mat poststd;
 };
 
 struct pathPart {
